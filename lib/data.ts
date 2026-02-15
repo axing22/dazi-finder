@@ -101,10 +101,10 @@ export const activityTypes = [
 
 // 地区数据
 export const provinces = ['湖南省'];
-export const cities = {
+export const cities: Record<string, string[]> = {
   '湖南省': ['长沙市', '株洲市', '湘潭市'],
 };
-export const districts = {
+export const districts: Record<string, string[]> = {
   '长沙市': ['岳麓区', '雨花区', '天心区', '开福区', '芙蓉区'],
   '株洲市': ['荷塘区', '芦淞区', '石峰区', '天元区'],
   '湘潭市': ['雨湖区', '岳塘区'],
