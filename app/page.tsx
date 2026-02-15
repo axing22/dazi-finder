@@ -11,6 +11,7 @@ export default function Home() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // 发布表单状态
   const [formData, setFormData] = useState({
@@ -38,6 +39,7 @@ export default function Home() {
   const fetchPosts = async () => {
     try {
       setLoading(true);
+      setApiError(null);
       const params = new URLSearchParams();
       if (formData.province) params.append('province', formData.province);
       if (formData.city) params.append('city', formData.city);
@@ -46,16 +48,18 @@ export default function Home() {
 
       const response = await fetch(`/api/posts?${params.toString()}`);
 
-      // 如果 API 不存在（404）或失败，显示提示信息
+      // 检查响应状态
       if (!response.ok) {
-        throw new Error('API 不可用');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API 错误: ${response.status}`);
       }
 
       const data = await response.json();
       setPosts(data);
     } catch (error) {
       console.error('获取帖子失败:', error);
-      // 如果 API 失败，使用空数组并显示配置提示
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      setApiError(errorMessage);
       setPosts([]);
     } finally {
       setLoading(false);
@@ -225,14 +229,24 @@ export default function Home() {
               ) : filteredPosts.length === 0 ? (
                 <div className="text-center py-8 px-4">
                   <div className="text-gray-500 mb-4">暂无数据</div>
-                  <div className="text-sm text-gray-400 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p className="font-semibold text-yellow-700 mb-2">💡 还未配置数据库</p>
-                    <p className="text-yellow-600 text-sm">
-                      请先配置 Supabase 数据库以启用多用户数据共享功能。
-                      <br />
-                      查看 <span className="font-semibold">SUPABASE_SETUP.md</span> 获取详细配置指南。
-                    </p>
-                  </div>
+                  {apiError ? (
+                    <div className="text-sm text-gray-400 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="font-semibold text-red-700 mb-2">⚠️ 连接失败</p>
+                      <p className="text-red-600 text-sm mb-2">
+                        错误信息: {apiError}
+                      </p>
+                      <p className="text-red-600 text-xs">
+                        请检查 Supabase 配置是否正确。查看浏览器控制台（F12）获取更多详细信息。
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-400 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="font-semibold text-blue-700 mb-2">👋 欢迎使用找搭子平台</p>
+                      <p className="text-blue-600 text-sm">
+                        还没有帖子，快来发布第一个找搭子活动吧！
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <AnimatePresence>
