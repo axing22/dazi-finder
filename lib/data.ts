@@ -140,9 +140,10 @@ export const districts: Record<string, string[]> = {
 };
 
 // 时间格式化
-export function formatTimeAgo(date: Date): string {
+export function formatTimeAgo(date: Date | string): string {
   const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000 / 60);
+  const targetDate = typeof date === 'string' ? new Date(date) : date;
+  const diff = Math.floor((now.getTime() - targetDate.getTime()) / 1000 / 60);
 
   if (diff < 60) return `${diff}分钟前`;
   if (diff < 24 * 60) return `${Math.floor(diff / 60)}小时前`;

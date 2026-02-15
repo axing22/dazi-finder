@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ActivityType, ContactType, Post } from '@/lib/types';
-import { mockPosts, activityTypes, provinces, cities, districts, formatTimeAgo } from '@/lib/data';
+import { activityTypes, provinces, cities, districts, formatTimeAgo } from '@/lib/data';
 
 export default function Home() {
   const [page, setPage] = useState<'home' | 'publish' | 'detail'>('home');
   const [publishStep, setPublishStep] = useState<1 | 2 | 3>(1);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [posts, setPosts] = useState<Post[]>(mockPosts);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // 发布表单状态
   const [formData, setFormData] = useState({
@@ -23,54 +24,74 @@ export default function Home() {
     contactType: 'wechat' as ContactType,
     contactValue: '',
     description: '',
+    isTest: true, // 默认为测试数据
   });
 
   // 搜索关键词
   const [searchKeyword, setSearchKeyword] = useState('');
 
-  // 筛选后的帖子
-  const filteredPosts = useMemo(() => {
-    return posts.filter(post => {
-      // 地区筛选 - 支持省/市/区筛选
-      if (formData.province && post.province !== formData.province) return false;
-      if (formData.city && post.city !== formData.city) return false;
-      if (formData.district && post.district !== formData.district) return false;
-      // 搜索筛选
-      if (searchKeyword) {
-        const keyword = searchKeyword.toLowerCase();
-        return (
-          post.activityType.toLowerCase().includes(keyword) ||
-          post.location?.toLowerCase().includes(keyword) ||
-          post.description?.toLowerCase().includes(keyword)
-        );
+  // 从 API 获取帖子数据
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
+      if (formData.province) params.append('province', formData.province);
+      if (formData.city) params.append('city', formData.city);
+      if (formData.district) params.append('district', formData.district);
+      if (searchKeyword) params.append('keyword', searchKeyword);
+
+      const response = await fetch(`/api/posts?${params.toString()}`);
+
+      // 如果 API 不存在（404）或失败，显示提示信息
+      if (!response.ok) {
+        throw new Error('API 不可用');
       }
-      return true;
-    });
-  }, [posts, formData.province, formData.city, formData.district, searchKeyword]);
+
+      const data = await response.json();
+      setPosts(data);
+    } catch (error) {
+      console.error('获取帖子失败:', error);
+      // 如果 API 失败，使用空数组并显示配置提示
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 筛选后的帖子（直接使用从 API 返回的数据）
+  const filteredPosts = posts;
 
   // 创建新帖子
-  const handlePublish = () => {
-    const newPost: Post = {
-      id: Date.now().toString(),
-      userId: 'current_user',
-      activityType: formData.activityType as ActivityType,
-      province: formData.province,
-      city: formData.city,
-      district: formData.district,
-      location: formData.location || undefined,
-      expectedTime: formData.expectedTime,
-      participantCount: formData.participantCount || undefined,
-      contactType: formData.contactType,
-      contactValue: formData.contactValue,
-      description: formData.description || undefined,
-      isComplete: !!(formData.location && formData.description),
-      status: 'active',
-      createdAt: new Date(),
-    };
+  const handlePublish = async () => {
+    try {
+      const response = await fetch('/api/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-    setPosts([newPost, ...posts]);
-    setPage('home');
-    resetForm();
+      if (!response.ok) {
+        throw new Error('发布失败');
+      }
+
+      const newPost = await response.json();
+
+      // 刷新帖子列表
+      await fetchPosts();
+      setPage('home');
+      resetForm();
+
+      alert('发布成功！');
+    } catch (error) {
+      console.error('发布失败:', error);
+      alert('发布失败，请稍后重试');
+    }
   };
 
   // 重置表单
@@ -86,6 +107,7 @@ export default function Home() {
       contactType: 'wechat' as ContactType,
       contactValue: '',
       description: '',
+      isTest: true, // 重置时保持测试模式
     });
     setPublishStep(1);
   };
@@ -128,7 +150,11 @@ export default function Home() {
                   type="text"
                   placeholder="搜索活动类型、地点..."
                   value={searchKeyword}
-                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  onChange={async (e) => {
+                    setSearchKeyword(e.target.value);
+                    // 使用防抖，延迟 500ms 后搜索
+                    setTimeout(() => fetchPosts(), 500);
+                  }}
                   className="w-full px-4 py-3 pl-10 bg-white rounded-xl border border-gray-200 focus:border-primary focus:outline-none"
                 />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
@@ -138,7 +164,7 @@ export default function Home() {
               <div className="flex gap-2 overflow-x-auto pb-2">
                 <select
                   value={formData.province}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const province = e.target.value;
                     const cityList = cities[province] || cities['default'];
                     setFormData({
@@ -147,6 +173,8 @@ export default function Home() {
                       city: cityList[0],
                       district: ''
                     });
+                    // 重新获取数据
+                    await fetchPosts();
                   }}
                   className="px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm whitespace-nowrap"
                 >
@@ -154,7 +182,7 @@ export default function Home() {
                 </select>
                 <select
                   value={formData.city}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const city = e.target.value;
                     const districtList = districts[city] || districts['default'];
                     setFormData({
@@ -162,6 +190,8 @@ export default function Home() {
                       city,
                       district: ''
                     });
+                    // 重新获取数据
+                    await fetchPosts();
                   }}
                   className="px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm whitespace-nowrap"
                 >
@@ -171,7 +201,11 @@ export default function Home() {
                 </select>
                 <select
                   value={formData.district}
-                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                  onChange={async (e) => {
+                    setFormData({ ...formData, district: e.target.value });
+                    // 重新获取数据
+                    await fetchPosts();
+                  }}
                   className="px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm whitespace-nowrap"
                 >
                   <option value="">全部区域</option>
@@ -184,8 +218,25 @@ export default function Home() {
 
             {/* 帖子列表 */}
             <div className="space-y-3">
-              <AnimatePresence>
-                {filteredPosts.map((post, index) => {
+              {loading ? (
+                <div className="text-center py-8 text-gray-500">
+                  加载中...
+                </div>
+              ) : filteredPosts.length === 0 ? (
+                <div className="text-center py-8 px-4">
+                  <div className="text-gray-500 mb-4">暂无数据</div>
+                  <div className="text-sm text-gray-400 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="font-semibold text-yellow-700 mb-2">💡 还未配置数据库</p>
+                    <p className="text-yellow-600 text-sm">
+                      请先配置 Supabase 数据库以启用多用户数据共享功能。
+                      <br />
+                      查看 <span className="font-semibold">SUPABASE_SETUP.md</span> 获取详细配置指南。
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <AnimatePresence>
+                  {filteredPosts.map((post, index) => {
                   const config = getActivityConfig(post.activityType);
                   return (
                     <motion.div
@@ -204,10 +255,13 @@ export default function Home() {
                           {config.icon}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <h3 className="font-bold text-gray-800">{post.activityType}</h3>
                             {!post.isComplete && (
                               <span className="px-2 py-0.5 bg-yellow-100 text-yellow-600 text-xs rounded">信息不完整</span>
+                            )}
+                            {post.isTest && (
+                              <span className="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded font-semibold">🧪 测试</span>
                             )}
                           </div>
                           <div className="text-sm text-gray-600 space-y-1">
@@ -236,7 +290,8 @@ export default function Home() {
                     </motion.div>
                   );
                 })}
-              </AnimatePresence>
+                </AnimatePresence>
+              )}
             </div>
           </motion.div>
         )}
@@ -444,6 +499,24 @@ export default function Home() {
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 h-24 resize-none"
                   />
+
+                  {/* 测试数据选项 */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isTest}
+                        onChange={(e) => setFormData({ ...formData, isTest: e.target.checked })}
+                        className="mt-1 w-4 h-4 text-primary rounded"
+                      />
+                      <div className="flex-1">
+                        <div className="font-semibold text-blue-700 text-sm">🧪 标记为测试数据</div>
+                        <div className="text-xs text-blue-600 mt-1">
+                          勾选后，帖子会显示"测试"标签，不会被误认为是真实数据。默认勾选以确保安全。
+                        </div>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -490,7 +563,12 @@ export default function Home() {
                     <div className={`w-16 h-16 rounded-2xl ${config.color} flex items-center justify-center text-4xl mb-4`}>
                       {config.icon}
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">{selectedPost.activityType}</h2>
+                    <div className="flex items-center gap-2 mb-4">
+                      <h2 className="text-2xl font-bold text-gray-800">{selectedPost.activityType}</h2>
+                      {selectedPost.isTest && (
+                        <span className="px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded font-semibold">🧪 测试</span>
+                      )}
+                    </div>
 
                     <div className="space-y-3 text-gray-600 mb-6">
                       <div className="flex items-center gap-2">

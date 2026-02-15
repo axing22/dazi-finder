@@ -18,8 +18,9 @@ export interface Post {
   contactValue: string;
   description?: string;
   isComplete: boolean;
+  isTest?: boolean; // 是否为测试数据
   status: 'active' | 'completed' | 'cancelled';
-  createdAt: Date;
+  createdAt: Date | string; // 支持字符串格式（从API返回）或Date对象
 }
 
 export interface User {
