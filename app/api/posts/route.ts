@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       contact_value: body.contactValue,
       description: body.description || null,
       is_complete: !!(body.location && body.description),
-      is_test: body.isTest !== undefined ? body.isTest : true, // 默认为 true（测试数据）
+      is_test: body.isTest !== undefined ? body.isTest : false, // 默认为 false（真实数据）
       user_id: 'anonymous', // 暂时使用匿名用户
     };
 

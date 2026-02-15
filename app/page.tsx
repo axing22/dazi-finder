@@ -25,7 +25,7 @@ export default function Home() {
     contactType: 'wechat' as ContactType,
     contactValue: '',
     description: '',
-    isTest: true, // 默认为测试数据
+    isTest: false, // 默认为真实数据
   });
 
   // 搜索关键词
@@ -111,7 +111,7 @@ export default function Home() {
       contactType: 'wechat' as ContactType,
       contactValue: '',
       description: '',
-      isTest: true, // 重置时保持测试模式
+      isTest: false, // 重置时也保持真实数据模式
     });
     setPublishStep(1);
   };
@@ -515,7 +515,7 @@ export default function Home() {
                   />
 
                   {/* 测试数据选项 */}
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -524,9 +524,9 @@ export default function Home() {
                         className="mt-1 w-4 h-4 text-primary rounded"
                       />
                       <div className="flex-1">
-                        <div className="font-semibold text-blue-700 text-sm">🧪 标记为测试数据</div>
-                        <div className="text-xs text-blue-600 mt-1">
-                          勾选后，帖子会显示"测试"标签，不会被误认为是真实数据。默认勾选以确保安全。
+                        <div className="font-semibold text-gray-700 text-sm">🧪 这是测试数据</div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          勾选后，帖子会显示"测试"标签。仅在测试时勾选，正式发布请保持不勾选状态。
                         </div>
                       </div>
                     </label>
