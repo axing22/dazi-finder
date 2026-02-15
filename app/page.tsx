@@ -25,13 +25,28 @@ export default function Home() {
     description: '',
   });
 
+  // 搜索关键词
+  const [searchKeyword, setSearchKeyword] = useState('');
+
   // 筛选后的帖子
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
+      // 地区筛选 - 支持省/市/区筛选
+      if (formData.province && post.province !== formData.province) return false;
+      if (formData.city && post.city !== formData.city) return false;
       if (formData.district && post.district !== formData.district) return false;
+      // 搜索筛选
+      if (searchKeyword) {
+        const keyword = searchKeyword.toLowerCase();
+        return (
+          post.activityType.toLowerCase().includes(keyword) ||
+          post.location?.toLowerCase().includes(keyword) ||
+          post.description?.toLowerCase().includes(keyword)
+        );
+      }
       return true;
     });
-  }, [posts, formData.district]);
+  }, [posts, formData.province, formData.city, formData.district, searchKeyword]);
 
   // 创建新帖子
   const handlePublish = () => {
@@ -94,13 +109,26 @@ export default function Home() {
           >
             {/* 头部 */}
             <div className="sticky top-0 bg-[#F7F9FC] pb-4 pt-2 z-10">
-              <h1 className="text-2xl font-bold text-gray-800 mb-4">🎯 找搭子</h1>
+              <div className="flex items-center justify-between mb-4">
+                <h1 className="text-2xl font-bold text-gray-800">🎯 找搭子</h1>
+                <motion.button
+                  onClick={() => setPage('publish')}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-full shadow-lg text-base font-semibold"
+                >
+                  <span className="text-xl">+</span>
+                  <span>发布找搭子</span>
+                </motion.button>
+              </div>
 
               {/* 搜索框 */}
               <div className="relative mb-4">
                 <input
                   type="text"
-                  placeholder="搜索活动类型..."
+                  placeholder="搜索活动类型、地点..."
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
                   className="w-full px-4 py-3 pl-10 bg-white rounded-xl border border-gray-200 focus:border-primary focus:outline-none"
                 />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
@@ -109,18 +137,48 @@ export default function Home() {
               {/* 地区筛选 */}
               <div className="flex gap-2 overflow-x-auto pb-2">
                 <select
+                  value={formData.province}
+                  onChange={(e) => {
+                    const province = e.target.value;
+                    const cityList = cities[province] || cities['default'];
+                    setFormData({
+                      ...formData,
+                      province,
+                      city: cityList[0],
+                      district: ''
+                    });
+                  }}
+                  className="px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm whitespace-nowrap"
+                >
+                  {provinces.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select
+                  value={formData.city}
+                  onChange={(e) => {
+                    const city = e.target.value;
+                    const districtList = districts[city] || districts['default'];
+                    setFormData({
+                      ...formData,
+                      city,
+                      district: ''
+                    });
+                  }}
+                  className="px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm whitespace-nowrap"
+                >
+                  {(cities[formData.province] || cities['default']).map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <select
                   value={formData.district}
                   onChange={(e) => setFormData({ ...formData, district: e.target.value })}
                   className="px-4 py-2 bg-white rounded-lg border border-gray-200 text-sm whitespace-nowrap"
                 >
                   <option value="">全部区域</option>
-                  {districts['长沙市'].map(d => (
+                  {(districts[formData.city] || districts['default']).map(d => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
-                <span className="px-4 py-2 bg-primary text-white rounded-lg text-sm whitespace-nowrap">
-                  📍 {formData.city}
-                </span>
               </div>
             </div>
 
@@ -180,16 +238,6 @@ export default function Home() {
                 })}
               </AnimatePresence>
             </div>
-
-            {/* 发布按钮 */}
-            <motion.button
-              onClick={() => setPage('publish')}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center text-2xl"
-            >
-              +
-            </motion.button>
           </motion.div>
         )}
 
@@ -267,17 +315,34 @@ export default function Home() {
                   <div className="grid grid-cols-3 gap-3">
                     <select
                       value={formData.province}
-                      onChange={(e) => setFormData({ ...formData, province: e.target.value })}
+                      onChange={(e) => {
+                        const province = e.target.value;
+                        const cityList = cities[province] || cities['default'];
+                        setFormData({
+                          ...formData,
+                          province,
+                          city: cityList[0],
+                          district: ''
+                        });
+                      }}
                       className="px-4 py-3 bg-white rounded-xl border border-gray-200"
                     >
                       {provinces.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                     <select
                       value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      onChange={(e) => {
+                        const city = e.target.value;
+                        const districtList = districts[city] || districts['default'];
+                        setFormData({
+                          ...formData,
+                          city,
+                          district: ''
+                        });
+                      }}
                       className="px-4 py-3 bg-white rounded-xl border border-gray-200"
                     >
-                      {cities[formData.province].map(c => <option key={c} value={c}>{c}</option>)}
+                      {(cities[formData.province] || cities['default']).map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                     <select
                       value={formData.district}
@@ -285,7 +350,7 @@ export default function Home() {
                       className="px-4 py-3 bg-white rounded-xl border border-gray-200"
                     >
                       <option value="">选择区县</option>
-                      {districts[formData.city].map(d => <option key={d} value={d}>{d}</option>)}
+                      {(districts[formData.city] || districts['default']).map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
 
