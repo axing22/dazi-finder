@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Supabase error:', error);
       return NextResponse.json(
-        { error: '获取帖子失败' },
+        { error: `数据库错误: ${error.message}` },
         { status: 500 }
       );
     }
